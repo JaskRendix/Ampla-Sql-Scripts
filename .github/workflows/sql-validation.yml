@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Verify SQL files exist
+        run: |
+          find src -name "*.sql" | sort
+
+      - name: Count SQL files
+        run: |
+          count=$(find src -name "*.sql" | wc -l)
+          echo "Found $count SQL files"
+
+      - name: Verify repository structure
+        run: |
+          test -d "src/Ampla Project"
+          test -d "src/Checks"
+          test -d "src/Database"
+          test -d "src/Performance"
+          test -d "src/Reporting Points"
+          test -d "src/State Database"
+          test -d "src/Streams"
+          test -d "src/ThresholdRanges"
+
+      - name: Verify README files exist
+        run: |
+          test -f README.md
+          test -f "src/Ampla Project/README.md"
+          test -f "src/Checks/README.md"
+          test -f "src/Database/README.md"
+          test -f "src/Reporting Points/README.md"
+          test -f "src/Streams/README.md"
+          test -f "src/ThresholdRanges/README.md"
