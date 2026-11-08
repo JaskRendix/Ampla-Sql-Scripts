@@ -1,64 +1,125 @@
-
-/* 
+/*
   Module.RecordCounts.sql
-  This is used to get a record count for each reporting point in the database.
+  Gets a record count for each reporting point in the database.
 */
 
-declare @dateTime datetime
-set @dateTime = getutcdate()
+DECLARE @utcNow DATETIME = GETUTCDATE();
 
-select 
-	counts.Module
-	,rp.ItemFullName as ReportingPoint
-	,counts.RecordCount
-	,counts.FirstRecord
-	,counts.LastRecord
-	,datediff(wk, counts.LastRecord, @dateTime) as WeeksAgo
-	,datediff(mm, counts.LastRecord, @dateTime) as MonthsAgo
-from (
-		select ReportingPointId, 'Production' as Module, count(1) as [RecordCount], min(SampleDateTime) as FirstRecord, max(SampleDateTime) as LastRecord
-		from dbo.ProductionDataSet
-		group by ReportingPointId
-	union all
-		select ReportingPointId, 'Downtime' as Module, count(1) as [RecordCount], min(StartDateTime) as FirstRecord, max(StartDateTime) as LastRecord
-		from dbo.DowntimeDataSet
-		group by ReportingPointId
-/*	-- Include the Energy module
-	union all 
-		select ReportingPointId, 'Energy' as Module, count(1) as [RecordCount], min(StartDateTime) as FirstRecord, max(StartDateTime) as LastRecord
-		from dbo.EnergyDataSet
-		group by ReportingPointId
-*/	union all
-		select ReportingPointId, 'Quality' as Module, count(1) as [RecordCount], min(SampleDateTime) as FirstRecord, max(SampleDateTime) as LastRecord
-		from dbo.QualityDataSet
-		group by ReportingPointId
-	union all
-		select ReportingPointId, 'Metrics' as Module, count(1) as [RecordCount], min(StartDateTime) as FirstRecord, max(StartDateTime) as LastRecord
-		from dbo.MetricsDataSet
-		group by ReportingPointId
-	union all
-		select ReportingPointId, 'Maintenance' as Module, count(1) as [RecordCount], min(SampleDateTime) as FirstRecord, max(SampleDateTime) as LastRecord
-		from dbo.MaintenanceDataSet
-		group by ReportingPointId
-	union all
-		/* Some versions of Ampla use SampleDateTime and others use StartDateTime */
-		select ReportingPointId, 'Knowledge' as Module, count(1) as [RecordCount], min(SampleDateTime) as FirstRecord, max(SampleDateTime) as LastRecord
-		--select ReportingPointId, 'Knowledge' as Module, count(1) as [RecordCount], min(StartDateTime) as FirstRecord, max(StartDateTime) as LastRecord
-		from dbo.KnowledgeDataSet
-		group by ReportingPointId
-	union all
-		select ReportingPointId, 'Planning' as Module, count(1) as [RecordCount], min(PlannedStartDateTime) as FirstRecord, max(PlannedStartDateTime) as LastRecord
-		from dbo.PlanningDataSet
-		group by ReportingPointId
-	union all
-		select ReportingPointId, 'Recipe' as Module, count(1) as [RecordCount], min(StateChangedDateTime) as FirstRecord, max(StateChangedDateTime) as LastRecord
-		from dbo.RecipeDataSet
-		group by ReportingPointId
-	) counts
-inner join
-	dbo.ReportingPoint rp
-	on 
-		rp.ReportingPointId = counts.ReportingPointId
-order by 
-	counts.RecordCount desc, rp.ItemFullName, counts.Module
+SELECT
+     counts.Module
+    ,rp.ItemFullName AS ReportingPoint
+    ,counts.RecordCount
+    ,counts.FirstRecord
+    ,counts.LastRecord
+    ,DATEDIFF(WEEK, counts.LastRecord, @utcNow) AS WeeksAgo
+    ,DATEDIFF(MONTH, counts.LastRecord, @utcNow) AS MonthsAgo
+FROM (
+    SELECT
+         ReportingPointId
+        ,'Production' AS Module
+        ,COUNT(1) AS RecordCount
+        ,MIN(SampleDateTime) AS FirstRecord
+        ,MAX(SampleDateTime) AS LastRecord
+    FROM dbo.ProductionDataSet
+    GROUP BY ReportingPointId
 
+    UNION ALL
+
+    SELECT
+         ReportingPointId
+        ,'Downtime' AS Module
+        ,COUNT(1) AS RecordCount
+        ,MIN(StartDateTime) AS FirstRecord
+        ,MAX(StartDateTime) AS LastRecord
+    FROM dbo.DowntimeDataSet
+    GROUP BY ReportingPointId
+
+    /* Include the Energy module
+    UNION ALL
+
+    SELECT
+         ReportingPointId
+        ,'Energy' AS Module
+        ,COUNT(1) AS RecordCount
+        ,MIN(StartDateTime) AS FirstRecord
+        ,MAX(StartDateTime) AS LastRecord
+    FROM dbo.EnergyDataSet
+    GROUP BY ReportingPointId
+    */
+
+    UNION ALL
+
+    SELECT
+         ReportingPointId
+        ,'Quality' AS Module
+        ,COUNT(1) AS RecordCount
+        ,MIN(SampleDateTime) AS FirstRecord
+        ,MAX(SampleDateTime) AS LastRecord
+    FROM dbo.QualityDataSet
+    GROUP BY ReportingPointId
+
+    UNION ALL
+
+    SELECT
+         ReportingPointId
+        ,'Metrics' AS Module
+        ,COUNT(1) AS RecordCount
+        ,MIN(StartDateTime) AS FirstRecord
+        ,MAX(StartDateTime) AS LastRecord
+    FROM dbo.MetricsDataSet
+    GROUP BY ReportingPointId
+
+    UNION ALL
+
+    SELECT
+         ReportingPointId
+        ,'Maintenance' AS Module
+        ,COUNT(1) AS RecordCount
+        ,MIN(SampleDateTime) AS FirstRecord
+        ,MAX(SampleDateTime) AS LastRecord
+    FROM dbo.MaintenanceDataSet
+    GROUP BY ReportingPointId
+
+    UNION ALL
+
+    /* Some Ampla versions use SampleDateTime and others use StartDateTime. */
+    SELECT
+         ReportingPointId
+        ,'Knowledge' AS Module
+        ,COUNT(1) AS RecordCount
+        ,MIN(SampleDateTime) AS FirstRecord
+        ,MAX(SampleDateTime) AS LastRecord
+        -- For versions using StartDateTime, use it instead:
+        -- ,MIN(StartDateTime) AS FirstRecord
+        -- ,MAX(StartDateTime) AS LastRecord
+    FROM dbo.KnowledgeDataSet
+    GROUP BY ReportingPointId
+
+    UNION ALL
+
+    SELECT
+         ReportingPointId
+        ,'Planning' AS Module
+        ,COUNT(1) AS RecordCount
+        ,MIN(PlannedStartDateTime) AS FirstRecord
+        ,MAX(PlannedStartDateTime) AS LastRecord
+    FROM dbo.PlanningDataSet
+    GROUP BY ReportingPointId
+
+    UNION ALL
+
+    SELECT
+         ReportingPointId
+        ,'Recipe' AS Module
+        ,COUNT(1) AS RecordCount
+        ,MIN(StateChangedDateTime) AS FirstRecord
+        ,MAX(StateChangedDateTime) AS LastRecord
+    FROM dbo.RecipeDataSet
+    GROUP BY ReportingPointId
+) AS counts
+INNER JOIN dbo.ReportingPoint AS rp
+    ON rp.ReportingPointId = counts.ReportingPointId
+ORDER BY
+     counts.RecordCount DESC
+    ,rp.ItemFullName
+    ,counts.Module;
