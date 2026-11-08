@@ -1,57 +1,78 @@
 /*
+    Database.Trustworthy.sql
 
-	Database.Trustworthy.sql
-	Sometimes a database may have .NET assemblies installed but not have the permission to run them.
-	This can occur when restoring databases from other servers with .NET assemblies in the database.
-	
-	This script will check for installed .NET assemblies and check the TRUSTWORTHY database setting.
-	
+    Lists SQL CLR modules and reports the database TRUSTWORTHY setting
+    and owner. Generates suggested remediation SQL when CLR modules are
+    present and the checks indicate a change.
+
+    Review the suggested commands before executing them.
 */
 
-declare @numCLR int
+DECLARE @numCLR int = 0;
+DECLARE @databaseNameQuoted nvarchar(258) = QUOTENAME(DB_NAME());
+DECLARE @saSid varbinary(85) = SUSER_SID(N'sa');
 
 SELECT
-        O.name,
-        A.name AS assembly_name, 
-        AM.assembly_class, 
-        cast(ASSEMBLYPROPERTY(A.name, 'VersionMajor') as varchar) + '.' 
-			+ cast(ASSEMBLYPROPERTY(A.name, 'VersionMinor') as varchar) + '.'
-			+ cast(ASSEMBLYPROPERTY(A.name, 'VersionBuild') as varchar) + '.'
-			+ cast(ASSEMBLYPROPERTY(A.name, 'VersionRevision') as varchar) as [AssemblyVersion],
-        A.permission_set_desc,
-        O.[type_desc]
-FROM
-        sys.assembly_modules AM
-        INNER JOIN sys.assemblies A ON A.assembly_id = AM.assembly_id
-        INNER JOIN sys.objects O ON O.object_id = AM.object_id
+    o.name AS object_name,
+    a.name AS assembly_name,
+    am.assembly_class,
+    CONCAT(
+        ASSEMBLYPROPERTY(a.name, 'VersionMajor'), '.',
+        ASSEMBLYPROPERTY(a.name, 'VersionMinor'), '.',
+        ASSEMBLYPROPERTY(a.name, 'VersionBuild'), '.',
+        ASSEMBLYPROPERTY(a.name, 'VersionRevision')
+    ) AS AssemblyVersion,
+    a.permission_set_desc,
+    o.type_desc
+FROM sys.assembly_modules AS am
+INNER JOIN sys.assemblies AS a
+    ON a.assembly_id = am.assembly_id
+INNER JOIN sys.objects AS o
+    ON o.object_id = am.object_id
 ORDER BY
-        A.name, AM.assembly_class
+    a.name,
+    am.assembly_class;
 
-set @numCLR = @@ROWCOUNT 
+SELECT @numCLR = COUNT(*)
+FROM sys.assembly_modules;
 
 SELECT
-	Name, 
-	'Check TRUSTWORTHY' as [Checking],
---	is_trustworthy_on as [RawResult],
-	case when is_trustworthy_on = 1 then 'TRUSTWORTHY IS ON' else 'TRUSTWORTHY IS OFF' end as [Result],
---	case when @numCLR > 0 then cast(@numCLR as varchar(3)) + ' CLR objects listed' else 'No CLR objects' end as [.NET objects],
-	case when is_trustworthy_on = 0 and @numCLR > 0 then '' else '-- ' end + 
-	'ALTER DATABASE [' + DB_NAME() +'] SET TRUSTWORTHY ON' as [Sql],
-	case when is_trustworthy_on = 0 and @numCLR > 0 then 'Errors may occur called .NET assemblies if TRUSTWORTHY is OFF' else 'No change to TRUSTWORTHY required' end as [Description]
-FROM sys.databases 
-WHERE
-	database_id = DB_ID()
-UNION	
-SELECT
-	Name, 
-	'Check DB Owner' as [Checking],
---	owner_sid as [RawResult],
-	'Owner: ' + suser_sname(owner_sid) as [Result],
---	case when @numCLR > 0 then cast(@numCLR as varchar(3)) + ' CLR objects listed' else 'No CLR objects' end as [.NET objects],
-	case when owner_sid = 0x01 or (owner_sid <> 0x01 and @numCLR = 0) then '-- ' else '' end + 
-	'ALTER AUTHORIZATION ON DATABASE::[' + name + '] TO sa' as [Sql],
-	case when owner_sid <> 0x01 and @numCLR > 0 then 'Errors may occur called .NET assemblies if owner is not ''sa''' else 'No change to owner required' end as [Description]
-FROM sys.databases
-WHERE
-	database_id = DB_ID()
+    d.name,
+    'Check TRUSTWORTHY' AS Checking,
+    CASE
+        WHEN d.is_trustworthy_on = 1 THEN 'TRUSTWORTHY IS ON'
+        ELSE 'TRUSTWORTHY IS OFF'
+    END AS Result,
+    CASE
+        WHEN d.is_trustworthy_on = 0 AND @numCLR > 0
+            THEN 'ALTER DATABASE ' + @databaseNameQuoted + ' SET TRUSTWORTHY ON'
+        ELSE '-- No change to TRUSTWORTHY required'
+    END AS SuggestedSql,
+    CASE
+        WHEN d.is_trustworthy_on = 0 AND @numCLR > 0
+            THEN 'CLR modules are present. Review the assembly requirements and security implications before changing the owner.'
+        ELSE 'No change to TRUSTWORTHY required by this check.'
+    END AS Description
+FROM sys.databases AS d
+WHERE d.database_id = DB_ID()
 
+UNION ALL
+
+SELECT
+    d.name,
+    'Check DB Owner' AS Checking,
+    CONCAT('Owner: ', COALESCE(SUSER_SNAME(d.owner_sid), '(unknown)')) AS Result,
+    CASE
+        WHEN d.owner_sid <> @saSid AND @numCLR > 0
+            THEN 'ALTER AUTHORIZATION ON DATABASE::'
+                 + @databaseNameQuoted
+                 + ' TO sa'
+        ELSE '-- No change to database owner required'
+    END AS SuggestedSql,
+    CASE
+        WHEN d.owner_sid <> @saSid AND @numCLR > 0
+            THEN 'CLR modules are present and the owner is not sa. Review the assembly requirements and security implications before changing the owner.'
+        ELSE 'No change to database owner required by this check.'
+    END AS Description
+FROM sys.databases AS d
+WHERE d.database_id = DB_ID();
