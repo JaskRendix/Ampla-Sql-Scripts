@@ -1,28 +1,45 @@
+/*
+    Lists Threshold Range items from the Ampla Project configuration.
 
-/* 
-	Threshold Range items are listed from the project using a Common Table Expression (CTE) 
-	and joining to the ItemTypes table.
+    Threshold Range items are identified by the item type:
+        Citect.Ampla.General.Server.ThresholdRange
+
+    Run this query against the AmplaProject database.
 */
 
--- Update for the Ampla Project configuration
-Use AmplaProject;
-
-WITH Item_CTE(ID, FullName, TypeID, Depth)
+WITH ItemHierarchy
+(
+    ID,
+    FullName,
+    TypeID,
+    Depth
+)
 AS
 (
-	SELECT ID, Cast(Name as VARCHAR(MAX)) as FullName, TypeID, 1 as Depth
-	FROM Items
-	WHERE ParentID = '00000000-0000-0000-0000-000000000000'
-	UNION ALL
-	SELECT item.ID,  Cast(cte.FullName + '.' + item.Name as VARCHAR(MAX)) as FullName, item.TypeID, cte.Depth + 1 as Depth
-	FROM Items as item
-	INNER JOIN Item_CTE as cte
-		ON item.ParentID = cte.ID
-)
+    SELECT
+        ID,
+        CAST(Name AS varchar(MAX)) AS FullName,
+        TypeID,
+        1 AS Depth
+    FROM Items
+    WHERE ParentID = '00000000-0000-0000-0000-000000000000'
 
-SELECT items.FullName as ThresholdRanges
-from Item_CTE items
-inner join ItemTypes types
-	on items.TypeID = types.ID
-where types.TypeFullName = 'Citect.Ampla.General.Server.ThresholdRange'
-order by FullName
+    UNION ALL
+
+    SELECT
+        item.ID,
+        CAST(cte.FullName + '.' + item.Name AS varchar(MAX)),
+        item.TypeID,
+        cte.Depth + 1
+    FROM Items AS item
+    INNER JOIN ItemHierarchy AS cte
+        ON item.ParentID = cte.ID
+)
+SELECT
+    items.FullName AS ThresholdRange
+FROM ItemHierarchy AS items
+INNER JOIN ItemTypes AS types
+    ON items.TypeID = types.ID
+WHERE types.TypeFullName = 'Citect.Ampla.General.Server.ThresholdRange'
+ORDER BY
+    items.FullName;
