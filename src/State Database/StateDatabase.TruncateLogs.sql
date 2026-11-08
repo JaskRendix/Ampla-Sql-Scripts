@@ -1,72 +1,85 @@
 /*
+    Ampla State Database cleanup script.
 
-	Ampla State Database Script to manage the size of the Log and Category Log tables.
-
+    Preserves the existing cleanup behavior:
+    when the oldest Log record is more than four weeks old,
+    delete records older than one week before that oldest record.
 */
 
-declare @utcNow datetime
-declare @weeksOld int
-declare @countLogs int
+DECLARE @utcNow       datetime = GETUTCDATE();
+DECLARE @weeksOld     int;
+DECLARE @countLogs    int;
+DECLARE @oldestLog    datetime;
 
-set @utcNow = GETUTCDATE()
+SELECT
+    @oldestLog = MIN([Timestamp]),
+    @countLogs = COUNT(*)
+FROM dbo.Log;
 
--- get an indication of the oldest record and size of the Log table.
-select @weeksOld = DATEDIFF(WK, logSummary.oldest, @utcNow), @countLogs = logSummary.records
-from 
-	(
-		select min(Timestamp) as oldest, COUNT(1) as records
-		from dbo.Log
-	) logSummary
+IF @countLogs = 0
+BEGIN
+    PRINT '*** [Summary] ***';
+    PRINT '--- No records have been deleted';
+    PRINT '--- Log table is empty';
+    RETURN;
+END;
 
-if (@weeksOld > 4)
-begin
+SET @weeksOld = DATEDIFF(WEEK, @oldestLog, @utcNow);
 
-	declare @categoryLogDeleted int
-	declare @scenarioDeleted int
-	declare @logDeleted int
-	
-	print 'Log table has ' + cast(@countLogs as varchar(10)) + ' rows'
-	print 'Oldest log record is ' + cast(@weeksOld as varchar(10)) + ' weeks old'
-	
-	declare @expiresAt datetime
-	set @expiresAt = DATEADD(WK, -1 * (@weeksOld - 1), @utcNow) 
-	print 'Deleting log entries - Expiry date (UTC): ' + cast(@expiresAt as varchar(20))
+IF @weeksOld > 4
+BEGIN
+    DECLARE @categoryLogDeleted int;
+    DECLARE @scenarioDeleted    int;
+    DECLARE @logDeleted         int;
+    DECLARE @expiresAt          datetime;
 
-	print '-- Deleting records from CategoryLog'
-	DELETE dbo.CategoryLog
-	from dbo.CategoryLog
-	INNER JOIN dbo.Log
-		ON Log.LogId = CategoryLog.LogId	
-	WHERE Log.Timestamp < @expiresAt
-	-- get the number of records deleted
-	set @categoryLogDeleted = @@ROWCOUNT
+    PRINT 'Log table has ' + CAST(@countLogs AS varchar(10)) + ' rows';
+    PRINT 'Oldest log record is ' + CAST(@weeksOld AS varchar(10)) + ' weeks old';
 
-	print '-- Deleting records from Scenario'
-	DELETE dbo.Scenario
-	from dbo.Scenario
-	INNER JOIN dbo.Log
-		ON Log.InstanceId = Scenario.InstanceId	
-	WHERE Log.Timestamp < @expiresAt
-	-- get the number of records deleted
-	set @scenarioDeleted = @@ROWCOUNT
+    SET @expiresAt = DATEADD(WEEK, -1 * (@weeksOld - 1), @utcNow);
 
-	print '-- Deleting records from Log'
-	DELETE dbo.Log
-	from dbo.Log
-	WHERE Log.Timestamp < @expiresAt 
-	-- get the number of records deleted
-	set @logDeleted = @@ROWCOUNT
+    PRINT 'Deleting log entries - Expiry date (UTC): '
+        + CAST(@expiresAt AS varchar(20));
 
-	print '*** [Summary] ***'
-	print '***  Deleted ' + cast(@logDeleted as varchar(10)) + ' rows from the Log table'
-	print '***  Deleted ' + cast(@categoryLogDeleted as varchar(10)) + ' rows from the CategoryLog table'
-	print '***  Deleted ' + cast(@scenarioDeleted as varchar(10)) + ' rows from the Scenario table'
+    PRINT '-- Deleting records from CategoryLog';
 
-end 
-else
-begin
-	print '*** [Summary] ***'
-	print '--- No records have been deleted'
-	print '--- Log table has ' + cast(@countLogs as varchar(10)) + ' rows '
-	print '--- Oldest record is ' + cast(@weeksOld as varchar(10)) + ' weeks old'
-end
+    DELETE dbo.CategoryLog
+    FROM dbo.CategoryLog
+    INNER JOIN dbo.Log
+        ON dbo.Log.LogId = dbo.CategoryLog.LogId
+    WHERE dbo.Log.[Timestamp] < @expiresAt;
+
+    SET @categoryLogDeleted = @@ROWCOUNT;
+
+    PRINT '-- Deleting records from Scenario';
+
+    DELETE dbo.Scenario
+    FROM dbo.Scenario
+    INNER JOIN dbo.Log
+        ON dbo.Log.InstanceId = dbo.Scenario.InstanceId
+    WHERE dbo.Log.[Timestamp] < @expiresAt;
+
+    SET @scenarioDeleted = @@ROWCOUNT;
+
+    PRINT '-- Deleting records from Log';
+
+    DELETE dbo.Log
+    WHERE dbo.Log.[Timestamp] < @expiresAt;
+
+    SET @logDeleted = @@ROWCOUNT;
+
+    PRINT '*** [Summary] ***';
+    PRINT '***  Deleted ' + CAST(@logDeleted AS varchar(10))
+        + ' rows from the Log table';
+    PRINT '***  Deleted ' + CAST(@categoryLogDeleted AS varchar(10))
+        + ' rows from the CategoryLog table';
+    PRINT '***  Deleted ' + CAST(@scenarioDeleted AS varchar(10))
+        + ' rows from the Scenario table';
+END
+ELSE
+BEGIN
+    PRINT '*** [Summary] ***';
+    PRINT '--- No records have been deleted';
+    PRINT '--- Log table has ' + CAST(@countLogs AS varchar(10)) + ' rows';
+    PRINT '--- Oldest record is ' + CAST(@weeksOld AS varchar(10)) + ' weeks old';
+END;
