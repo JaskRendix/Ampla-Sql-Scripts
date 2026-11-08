@@ -1,84 +1,99 @@
 /* -------------------------------------------------------------------
---  Determines if there is any orphaned streams in the state database 
---  and creates a SQL Script to remove them
---
---   Usage 
---		set @configDB = DB_NAME()		/* to use the current database */
---		set @configDB = 'AmplaProject'	/* or specify the database     */
+    Determines whether orphaned streams exist in the State database
+    and generates SQL statements to remove them.
+
+    Usage:
+        Set @configDB to the configuration database.
+        Optionally set @stateDB_override to override the derived
+        state database name.
 ---------------------------------------------------------------------- */
 
-declare @configDB varchar(50)
-declare @stateDB_override varchar(50)
+DECLARE @configDB sysname = DB_NAME();
+-- DECLARE @configDB sysname = N'AmplaProject';
 
-set @configDB = DB_NAME()			/* use the current database */
--- set @configDB = 'AmplaProject'	/* or specify the config database here */
+DECLARE @stateDB_override sysname = NULL;
 
-/* uncomment following line to override the default state database */
---set @stateDB_override = 'overide the state database'
+DECLARE @sql nvarchar(MAX);
+DECLARE @stateDB sysname;
 
-/*--------------------------------------------------------------------*/
+-- Uncomment to override the default state database.
+-- SET @stateDB_override = N'MyStateDatabase';
 
-declare @sql nvarchar(max)
-declare @stateDB varchar(50)
+SET @stateDB = COALESCE(@stateDB_override, @configDB + N'State');
 
-set @stateDB = COALESCE(@stateDB_override, @configDB + 'State');
-
---print 'ConfigDB: ' + @configDB
---print 'StateDB: ' + @stateDB
-
-IF NOT EXISTS (SELECT name FROM sys.databases WHERE name = @configDB)
+IF NOT EXISTS
+(
+    SELECT 1
+    FROM sys.databases
+    WHERE name = @configDB
+)
 BEGIN
-	print '** ERROR - Unable to find Ampla Config Database : [' + @configDB + ']'
-END
+    PRINT '** ERROR - Unable to find Ampla Config Database: [' + @configDB + ']';
+    RETURN;
+END;
 
-IF NOT EXISTS (SELECT name FROM sys.databases WHERE name = @stateDB)
+IF NOT EXISTS
+(
+    SELECT 1
+    FROM sys.databases
+    WHERE name = @stateDB
+)
 BEGIN
-	PRINT '** ERROR - Unable to find Ampla State Database : [' + @stateDB + ']'
-END 
+    PRINT '** ERROR - Unable to find Ampla State Database: [' + @stateDB + ']';
+    RETURN;
+END;
 
-IF OBJECT_ID(@configDB +'.dbo.Items', 'U') IS NULL
-BEGIN 
-	PRINT '** ERROR - Ampla Config Database : [' + @configDB + '] is not a valid Ampla config database.'
-END
+IF OBJECT_ID(@configDB + '.dbo.Items', 'U') IS NULL
+BEGIN
+    PRINT '** ERROR - [' + @configDB + '] is not a valid Ampla configuration database.';
+    RETURN;
+END;
 
-IF OBJECT_ID(@stateDB +'.dbo.SampleStoreSample', 'U') IS NULL
-BEGIN 
-	PRINT '** ERROR - Ampla State Database : [' + @stateDB + '] is not a valid Ampla State database.'
-END
+IF OBJECT_ID(@stateDB + '.dbo.SampleStoreSample', 'U') IS NULL
+BEGIN
+    PRINT '** ERROR - [' + @stateDB + '] is not a valid Ampla state database.';
+    RETURN;
+END;
 
-set @sql = 
-'
-select 
-	streams.StreamId,
-	streams.ItemId,
-	streams.PropertyName,
-	COALESCE(samples.SampleCount, 0) as SampleCount,
-	[' + @stateDB + '].dbo.udfTicksToDateTime(streams.StartTimeTicks) as StartTime,
-	[' + @stateDB + '].dbo.udfTicksToDateTime(streams.EndTimeTicks) as EndTime,
-	CASE WHEN COALESCE(samples.SampleCount,0) > 0 THEN 
-	''DELETE FROM [' + @stateDB + '].dbo.SampleStoreSample WHERE StreamId='' + cast(streams.StreamId as varchar(10)) + CHAR(13) 
-	ELSE '''' END + 
-	''DELETE FROM [' + @stateDB + '].dbo.SampleStoreSampleStream WHERE StreamId='' + cast(streams.StreamId as varchar(10)) 
-	as [Delete SQL]
-from 
-	[' + @stateDB + '].dbo.SampleStoreSampleStream streams
-	left join (
-		select StreamId, count(1) as SampleCount
-		from [' + @stateDB + '].dbo.SampleStoreSample
-		group by StreamId
-	) samples 
-	on 
-		streams.StreamId = samples.StreamId
-where ItemId not in (
-	select Id 
-	from [' + @configDB + '].dbo.Items
-	)		
+SET @sql = N'
+SELECT
+    streams.StreamId,
+    streams.ItemId,
+    streams.PropertyName,
+    COALESCE(samples.SampleCount, 0) AS SampleCount,
+    ' + QUOTENAME(@stateDB) + N'.dbo.udfTicksToDateTime(streams.StartTimeTicks) AS StartTime,
+    ' + QUOTENAME(@stateDB) + N'.dbo.udfTicksToDateTime(streams.EndTimeTicks) AS EndTime,
+    CASE
+        WHEN COALESCE(samples.SampleCount, 0) > 0
+        THEN
+            ''DELETE FROM ' + QUOTENAME(@stateDB) + N'.dbo.SampleStoreSample WHERE StreamId=''
+            + CONVERT(varchar(20), streams.StreamId)
+            + CHAR(13)
+        ELSE ''''
+    END +
+    ''DELETE FROM ' + QUOTENAME(@stateDB) + N'.dbo.SampleStoreSampleStream WHERE StreamId=''
+    + CONVERT(varchar(20), streams.StreamId)
+    AS [Delete SQL]
+FROM ' + QUOTENAME(@stateDB) + N'.dbo.SampleStoreSampleStream AS streams
+LEFT JOIN
+(
+    SELECT
+        StreamId,
+        COUNT(*) AS SampleCount
+    FROM ' + QUOTENAME(@stateDB) + N'.dbo.SampleStoreSample
+    GROUP BY StreamId
+) AS samples
+    ON streams.StreamId = samples.StreamId
+WHERE NOT EXISTS
+(
+    SELECT 1
+    FROM ' + QUOTENAME(@configDB) + N'.dbo.Items AS items
+    WHERE items.Id = streams.ItemId
+)
+ORDER BY
+    samples.SampleCount DESC,
+    streams.PropertyName;
+';
 
-order by 
-	samples.SampleCount desc,
-	streams.PropertyName'
-
---print @sql
-exec sp_executesql @sql
-
-
+-- PRINT @sql;
+EXEC sys.sp_executesql @sql;
