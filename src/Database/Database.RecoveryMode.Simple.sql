@@ -1,19 +1,30 @@
-/* 
-	Database.RecoveryMode.Simple
-	A lot of Ampla database are set up with FULL recovery mode that is not required
-	
-	The [SQL] column contains a generated script to set them to 'SIMPLE'
+/*
+    Database.RecoveryMode.Simple.sql
+
+    Lists databases using FULL recovery mode and generates
+    ALTER DATABASE statements to switch them to SIMPLE recovery.
+
+    Review the generated SQL before execution.
 */
 
-SELECT 
-	name, 
-	recovery_model_desc,
-	'ALTER DATABASE [' + name + '] SET RECOVERY SIMPLE WITH NO_WAIT ' as [SQL]
-FROM 
-	sys.databases
-WHERE recovery_model_desc = 'FULL'
-	and name not in 
-	('master', 'temp_db', 'model', 'msdb', 
-	'ReportServer')
-ORDER BY 
-	name
+SELECT
+    name,
+    recovery_model_desc,
+    CONCAT(
+        'ALTER DATABASE ',
+        QUOTENAME(name),
+        ' SET RECOVERY SIMPLE WITH NO_WAIT'
+    ) AS [SQL]
+FROM sys.databases
+WHERE
+    recovery_model_desc = 'FULL'
+    AND name NOT IN
+    (
+        'master',
+        'temp_db',
+        'model',
+        'msdb',
+        'ReportServer'
+    )
+ORDER BY
+    name;

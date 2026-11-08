@@ -1,25 +1,24 @@
-/* -------------------------------------------------------------------
---  Determines how source objects are used within other objects in a database
----------------------------------------------------------------------- */
+/*
+    Database.ObjectUse.sql
 
+    Reports database objects referenced by other SQL objects and
+    shows where those references occur.
+*/
 
 SELECT DISTINCT
-	tbl.name as [Source Name], 
-	tbl.type_desc as [Source Type],
-	sp.name as [Found In], 
-	sp.type_desc as [Found In Type],
-	sm.definition as [SQL Definition],
-	CHARINDEX(tbl.name, sm.definition) as [SQL position]
-FROM 
-	sys.objects tbl 
-INNER JOIN
-	sys.sql_expression_dependencies sd 
-	ON tbl.object_id = sd.referenced_id
-INNER JOIN
-	sys.objects sp 
-	ON sd.referencing_id = sp.object_id
-INNER JOIN
-	sys.sql_modules sm
-	on sp.object_id = sm.object_id
+    src.name AS [Source Name],
+    src.type_desc AS [Source Type],
+    ref.name AS [Found In],
+    ref.type_desc AS [Found In Type],
+    mod.definition AS [SQL Definition],
+    CHARINDEX(src.name, mod.definition) AS [SQL Position]
+FROM sys.objects AS src
+INNER JOIN sys.sql_expression_dependencies AS dep
+    ON src.object_id = dep.referenced_id
+INNER JOIN sys.objects AS ref
+    ON dep.referencing_id = ref.object_id
+INNER JOIN sys.sql_modules AS mod
+    ON ref.object_id = mod.object_id
 ORDER BY
-	sp.Name, [SQL position]
+    ref.name,
+    [SQL Position];

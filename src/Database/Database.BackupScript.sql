@@ -1,44 +1,64 @@
 /*
-	Database.BackupScript.sql
-	Generates a set of backup scripts for Ampla Databases with the date in the file name
-	
-	Adjust the name of the database as required.
-	Script can be modified to execute directly
+    Database.BackupScript.sql
+
+    Generates backup commands for Ampla databases using the current
+    date in the backup file name.
+
+    Review the generated commands before execution.
 */
 
-declare @date varchar (10)
-declare @sqlFormat varchar(1000)
-declare @sql varchar(max)
-declare @backupDir varchar(100)
+DECLARE @date varchar(10) =
+    CONVERT(varchar(10), GETDATE(), 120);
 
-set @date = convert(varchar(10),getDate(),120)
+DECLARE @backupDir varchar(100) =
+    'C:\Backups\Databases\';
 
-set @backupDir = 'C:\Backups\Databases\'
+DECLARE @sqlFormat varchar(1000);
+DECLARE @sql varchar(MAX);
 
-set @sqlFormat = 'BACKUP DATABASE [' 
-			+ '<<db-name>>' 
-			+ '] TO DISK = N''' 
-			+ @backupDir
-			+ @date 
-			+ ' ' 
-			+ '<<db-name>>'
-			+ '.bak'' WITH NOFORMAT, INIT, NAME = N''' 
-			+ '<<db-name>>'
-			+ '-Full Backup'', SKIP, NOREWIND, NOUNLOAD,  STATS = 10'
+SET @sqlFormat =
+      'BACKUP DATABASE [<<db-name>>] '
+    + 'TO DISK = N'''
+    + @backupDir
+    + @date
+    + ' <<db-name>>.bak'' '
+    + 'WITH NOFORMAT, INIT, '
+    + 'NAME = N''<<db-name>>-Full Backup'', '
+    + 'SKIP, NOREWIND, NOUNLOAD, STATS = 10';
 
-set @sql = Replace (@sqlFormat, '<<db-name>>', 'AmplaProject')
-print @sql
---exec (@sql)
+SET @sql = REPLACE(
+    @sqlFormat,
+    '<<db-name>>',
+    'AmplaProject'
+);
 
-set @sql = Replace (@sqlFormat, '<<db-name>>', 'AmplaProjectData')
-print @sql
---exec (@sql)
+PRINT @sql;
+-- EXEC (@sql);
 
-set @sql = Replace (@sqlFormat, '<<db-name>>', 'AmplaProjectState')
-print @sql
---exec (@sql)
+SET @sql = REPLACE(
+    @sqlFormat,
+    '<<db-name>>',
+    'AmplaProjectData'
+);
 
-set @sql = Replace (@sqlFormat, '<<db-name>>', 'AmplaProjectExtras')
-print @sql
---exec (@sql)
+PRINT @sql;
+-- EXEC (@sql);
+
+SET @sql = REPLACE(
+    @sqlFormat,
+    '<<db-name>>',
+    'AmplaProjectState'
+);
+
+PRINT @sql;
+-- EXEC (@sql);
+
+SET @sql = REPLACE(
+    @sqlFormat,
+    '<<db-name>>',
+    'AmplaProjectExtras'
+);
+
+PRINT @sql;
+-- EXEC (@sql);
 GO

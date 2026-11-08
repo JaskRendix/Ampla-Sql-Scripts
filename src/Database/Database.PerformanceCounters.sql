@@ -1,20 +1,24 @@
 /*
-Script to output the SQL Performance Counters
+    Database.PerformanceCounters.sql
+
+    Lists SQL Server performance counters and their meanings.
 */
 
-select 
-	object_name,
-	counter_name,
-	instance_name,
-	cntr_value,
-	case cntr_type 
-		when 65792 then 'Absolute Meaning' 
-		when 65536 then 'Absolute Meaning' 
-		when 272696576 then 'Per Second counter and is Cumulative in Nature'
-		when 1073874176 then 'Bulk Counter. To get correct value, this value needs to be divided by Base Counter value'
-		when 537003264 then 'Bulk Counter. To get correct value, this value needs to be divided by Base Counter value' 
-	end as counter_comments
-from 
-	sys.dm_os_performance_counters
-where 
-	cntr_type not in (1073939712)
+SELECT
+    object_name,
+    counter_name,
+    instance_name,
+    cntr_value,
+    CASE cntr_type
+        WHEN 65792 THEN 'Absolute Meaning'
+        WHEN 65536 THEN 'Absolute Meaning'
+        WHEN 272696576 THEN 'Per Second counter and is cumulative in nature'
+        WHEN 1073874176 THEN 'Bulk counter. Divide by the corresponding base counter to obtain the correct value'
+        WHEN 537003264 THEN 'Bulk counter. Divide by the corresponding base counter to obtain the correct value'
+    END AS counter_comments
+FROM sys.dm_os_performance_counters
+WHERE cntr_type NOT IN (1073939712)
+ORDER BY
+    object_name,
+    counter_name,
+    instance_name;

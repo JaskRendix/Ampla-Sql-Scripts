@@ -1,15 +1,27 @@
-select 
-	so.object_id as [Object.Id],
-	so.name as [Object.Name],
-	so.type_desc as [Object.Type],
-	COALESCE(COL_NAME(d.referencing_id, d.referencing_minor_id), '(n/a)') AS [Object.Column],
-	ro.object_id as [Referenced.Id],
-	ro.name as [Referenced.Name],
-	ro.type_desc as [Referenced.Type],
-	d.* 
-from 
-	sys.sql_expression_dependencies d
-left join
-	sys.objects so on d.referencing_id = so.object_id
-left join
-	sys.objects ro on d.referenced_id = ro.object_id
+/*
+    Database.ReferencedObjects.sql
+
+    Lists SQL object dependencies and the referenced objects
+    used by database objects.
+*/
+
+SELECT
+    src.object_id AS [Object.Id],
+    src.name AS [Object.Name],
+    src.type_desc AS [Object.Type],
+    COALESCE(
+        COL_NAME(dep.referencing_id, dep.referencing_minor_id),
+        '(n/a)'
+    ) AS [Object.Column],
+    ref.object_id AS [Referenced.Id],
+    ref.name AS [Referenced.Name],
+    ref.type_desc AS [Referenced.Type],
+    dep.*
+FROM sys.sql_expression_dependencies AS dep
+LEFT JOIN sys.objects AS src
+    ON dep.referencing_id = src.object_id
+LEFT JOIN sys.objects AS ref
+    ON dep.referenced_id = ref.object_id
+ORDER BY
+    src.name,
+    ref.name;
