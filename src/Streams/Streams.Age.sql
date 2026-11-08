@@ -1,102 +1,105 @@
 /* -------------------------------------------------------------------
---  Determines the age of streams in the State database to assist in 
---  understanding streams that stop updating.
---  This script will generate SQL and combine the information 
---  from the state and config databases.
---
---   Usage
---		set @configDB = 'AmplaProject'
+    Determines the age of streams in the State database to assist in
+    understanding streams that have stopped updating.
+
+    Generates and executes a query that combines information from the
+    configuration and state databases.
+
+    Usage:
+        Set @configDB to the configuration database.
+        Set @stateDB_override to override the derived state database name.
 ----------------------------------------------------------------------*/
 
-declare @configDB varchar(25)
-declare @stateDB_override varchar(25)
+DECLARE @configDB sysname = N'AmplaProject';
+DECLARE @stateDB_override sysname = NULL;
 
-set @configDB = 'AmplaProject'    /* specify the config database here */
+DECLARE @sql nvarchar(MAX);
+DECLARE @stateDB sysname;
 
-/* uncomment following line to override the default state database */
---set @stateDB_override = 'overide the state database'
+-- Uncomment to override the default state database.
+-- SET @stateDB_override = N'MyStateDatabase';
 
-/*--------------------------------------------------------------------*/
+SET @stateDB = COALESCE(@stateDB_override, @configDB + N'State');
 
-declare @sql nvarchar(max)
-declare @stateDB varchar(25)
+SET @sql = N'
+DECLARE @utcNow DATETIME = GETUTCDATE();
 
-set @stateDB = COALESCE(@stateDB_override, @configDB + 'State');
-
-set @sql = 
-'
-DECLARE @utcNow DATETIME
-SET @utcNow = GETUTCDATE();
-
-WITH 
-Item_CTE(ID, FullName, TypeID, Depth)
+WITH Item_CTE
+(
+    ID,
+    FullName,
+    TypeID,
+    Depth
+)
 AS
 (
-	SELECT 
-		ID, 
-		Cast(Name as VARCHAR(MAX)) AS FullName, 
-		TypeID, 
-		1 AS Depth
-	FROM 
-		' + @configDB + '.dbo.Items
-	WHERE 
-		ParentID = ''00000000-0000-0000-0000-000000000000''
-	UNION ALL
-	SELECT 
-		item.ID,  
-		Cast(cte.FullName + ''.'' + item.Name as VARCHAR(MAX)) AS FullName, 
-		item.TypeID, 
-		cte.Depth + 1 AS Depth
-	FROM 
-		' + @configDB + '.dbo.Items AS item
-	INNER JOIN Item_CTE AS cte
-		ON item.ParentID = cte.ID
+    SELECT
+        ID,
+        CAST(Name AS varchar(MAX)) AS FullName,
+        TypeID,
+        1 AS Depth
+    FROM ' + QUOTENAME(@configDB) + N'.dbo.Items
+    WHERE ParentID = ''00000000-0000-0000-0000-000000000000''
+
+    UNION ALL
+
+    SELECT
+        item.ID,
+        CAST(cte.FullName + ''.'' + item.Name AS varchar(MAX)) AS FullName,
+        item.TypeID,
+        cte.Depth + 1
+    FROM ' + QUOTENAME(@configDB) + N'.dbo.Items AS item
+    INNER JOIN Item_CTE AS cte
+        ON item.ParentID = cte.ID
+),
+Stream_CTE
+(
+    StreamId,
+    ItemId,
+    PropertyName,
+    StartTime,
+    EndTime
 )
-, Stream_CTE (StreamId, ItemId, PropertyName, StartTime, EndTime)
 AS
 (
-	SELECT
-		StreamId,
-		ItemId, 
-		PropertyName,
-		' + @stateDB + '.dbo.udfTicksToDateTime(StartTimeTicks) as StartTime,
-		' + @stateDB + '.dbo.udfTicksToDateTime(EndTimeTicks) as EndTime
-	FROM 
-		' + @stateDB + '.dbo.SampleStoreSampleStream
-	WHERE 
-		StartTimeTicks IS NOT NULL
+    SELECT
+        StreamId,
+        ItemId,
+        PropertyName,
+        ' + QUOTENAME(@stateDB) + N'.dbo.udfTicksToDateTime(StartTimeTicks) AS StartTime,
+        ' + QUOTENAME(@stateDB) + N'.dbo.udfTicksToDateTime(EndTimeTicks) AS EndTime
+    FROM ' + QUOTENAME(@stateDB) + N'.dbo.SampleStoreSampleStream
+    WHERE StartTimeTicks IS NOT NULL
 )
 
-SELECT 
-	ss.StreamId,
-	config.FullName, 
-	ss.PropertyName,
-	DATEDIFF(DAY, ss.EndTime, @utcNow) AS AgeDays,
-	DATEDIFF(HOUR, ss.EndTime, @utcNow) AS AgeHours,
-	DATEDIFF(MI, ss.EndTime, @utcNow) AS AgeMinutes,
-	config.TypeFullName,
-	ss.StartTime,
-	ss.EndTime
-FROM 
-	Stream_CTE ss
-	LEFT JOIN (
-		SELECT items.ID, items.FullName, items.Depth, types.TypeFullName
-		FROM Item_CTE items
-		INNER JOIN ' + @configDB + '.dbo.ItemTypes types
-		ON items.TypeID = types.ID
-	) config 
-	on 
-		config.ID = ss.ItemId
-WHERE 
-	config.FullName IS NOT NULL
-	
+SELECT
+    ss.StreamId,
+    config.FullName,
+    ss.PropertyName,
+    DATEDIFF(DAY, ss.EndTime, @utcNow) AS AgeDays,
+    DATEDIFF(HOUR, ss.EndTime, @utcNow) AS AgeHours,
+    DATEDIFF(MINUTE, ss.EndTime, @utcNow) AS AgeMinutes,
+    config.TypeFullName,
+    ss.StartTime,
+    ss.EndTime
+FROM Stream_CTE AS ss
+LEFT JOIN
+(
+    SELECT
+        items.ID,
+        items.FullName,
+        items.Depth,
+        types.TypeFullName
+    FROM Item_CTE AS items
+    INNER JOIN ' + QUOTENAME(@configDB) + N'.dbo.ItemTypes AS types
+        ON items.TypeID = types.ID
+) AS config
+    ON config.ID = ss.ItemId
+WHERE config.FullName IS NOT NULL
 ORDER BY
-	ss.EndTime ASC,
-	config.FullName DESC,
-	ss.PropertyName
-'
+    ss.EndTime ASC,
+    config.FullName DESC,
+    ss.PropertyName;
+';
 
---print @sql
-exec sp_executesql @sql
-
-
+EXEC sys.sp_executesql @sql;
