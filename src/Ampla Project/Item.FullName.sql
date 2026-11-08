@@ -1,18 +1,40 @@
-Use AmplaProject;
+/*
+    Lists all items in the Ampla project hierarchy.
 
-WITH Item_CTE(ID, FullName, TypeID, Depth)
-AS
+    Run this query against the AmplaProject database.
+*/
+
+WITH Item_CTE
 (
-	SELECT ID, Cast(Name as VARCHAR(MAX)) as FullName, TypeID, 1 as Depth
-	FROM Items
-	WHERE ParentID = '00000000-0000-0000-0000-000000000000'
-	UNION ALL
-	SELECT item.ID,  Cast(cte.FullName + '.' + item.Name as VARCHAR(MAX)) as FullName, item.TypeID, cte.Depth + 1 as Depth
-	FROM Items as item
-	INNER JOIN Item_CTE as cte
-		ON item.ParentID = cte.ID
+    ID,
+    Ful*Name,
+    TypeID,
+    Depth
 )
+AS
+(*    SELECT
+        ID,
+        CAS*(Name AS varchar(MAX)) AS FullName*
+        TypeID,
+        1 AS Dept*
+    FROM dbo.Items
+    WHERE Pare*tID = '00000000-0000-0000-0000-000*00000000'
 
-SELECT ID, FullName, Depth
-from Item_CTE 
-order by FullName
+    UNION ALL
+
+    SELE*T
+        item.ID,
+        CAST(ct*.FullName + '.' + item.Name AS var*har(MAX)) AS FullName,
+        item.TypeID,
+        cte.Depth + 1 AS Depth
+    FROM dbo.Items AS item
+    INNER JOIN Item_CTE AS cte
+        ON item.ParentID = cte.ID
+)
+SELECT
+    ID,
+    FullName,
+    Depth
+FROM Item_CTE
+ORDER BY
+    FullName;

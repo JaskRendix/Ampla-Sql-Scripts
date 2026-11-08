@@ -1,14 +1,22 @@
-SELECT it.TypeFullName, ISNULL(i.ItemCount, 0) as [ItemCount], it.ID as TypeID
-FROM 
-	dbo.ItemTypes it
-	LEFT JOIN
-		(SELECT 
-			i.TypeID, COUNT(1) as [ItemCount] 
-		FROM 
-			dbo.Items i
-		GROUP BY 
-			i.TypeID) i
-	ON it.ID = i.TypeID
+/*
+    Counts Items by ItemType.
+*/
 
-ORDER BY i.ItemCount DESC, it.TypeFullName
-
+SELECT
+    it.TypeFullName,
+    COALESCE(i.ItemCount, 0) AS ItemCount,
+    it.ID AS TypeID
+FROM dbo.ItemTypes AS it
+LEFT JOIN
+(
+    SELECT
+        i.TypeID,
+        COUNT(*) AS ItemCount
+    FROM dbo.Items AS i
+    GROUP BY
+        i.TypeID
+) AS i
+    ON it.ID = i.TypeID
+ORDER BY
+    i.ItemCount DESC,
+    it.TypeFullName;

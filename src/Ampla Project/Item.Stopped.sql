@@ -1,21 +1,48 @@
-/* 
-	Item.Stopped.sql
+/*
+    Item.Stopped.sql
+
+    Lists items with a StartupMode property together with their item type.
+
+    Run this query against the AmplaProject database.
 */
-WITH Item_CTE(ID, FullName, TypeID, Depth)
+
+WITH Item_CTE
+(
+    ID,
+    FullName,
+    TypeID,
+    Depth
+)
 AS
 (
-	SELECT ID, Cast(Name as VARCHAR(MAX)) as FullName, TypeID, 1 as Depth
-	FROM Items
-	WHERE ParentID = '00000000-0000-0000-0000-000000000000'
-	UNION ALL
-	SELECT item.ID,  Cast(cte.FullName + '.' + item.Name as VARCHAR(MAX)) as FullName, item.TypeID, cte.Depth + 1 as Depth
-	FROM Items as item
-	INNER JOIN Item_CTE as cte
-		ON item.ParentID = cte.ID
-)
+    SELECT
+        ID,
+        CAST(Name AS varchar(MAX)) AS FullName,
+        TypeID,
+        1 AS Depth
+    FROM dbo.Items
+    WHERE ParentID = '00000000-0000-0000-0000-000000000000'
 
-select cte.FullName as [Stopped Items], ip.Value as [StartupMode], it.TypeFullName
-from ItemProperties ip
-inner join Item_CTE cte on ip.ItemID = cte.ID
-inner join ItemTypes it on cte.TypeID = it.ID
-where PropertyName = 'StartupMode'
+    UNION ALL
+
+    SELECT
+        item.ID,
+        CAST(cte.FullName + '.' + item.Name AS varchar(MAX)) AS FullName,
+        item.TypeID,
+        cte.Depth + 1 AS Depth
+    FROM dbo.Items AS item
+    INNER JOIN Item_CTE AS cte
+        ON item.ParentID = cte.ID
+)
+SELECT
+    cte.FullName AS [Stopped Items],
+    ip.Value AS StartupMode,
+    it.TypeFullName
+FROM dbo.ItemProperties AS ip
+INNER JOIN Item_CTE AS cte
+    ON ip.ItemID = cte.ID
+INNER JOIN dbo.ItemTypes AS it
+    ON cte.TypeID = it.ID
+WHERE ip.PropertyName = 'StartupMode'
+ORDER BY
+    cte.FullName;

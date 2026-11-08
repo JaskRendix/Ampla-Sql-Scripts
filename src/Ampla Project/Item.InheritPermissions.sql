@@ -1,23 +1,48 @@
-/* 
-	Item.InheritPermissions.sql
+/*
+    Item.InheritPermissions.sql
+
+    Lists items that explicitly define the InheritPermissions property.
+
+    Run this query against the AmplaProject database.
 */
 
-WITH Item_CTE(ID, FullName, TypeID, Depth)
+WITH Item_CTE
+(
+    ID,
+    FullName,
+    TypeID,
+    Depth
+)
 AS
 (
-	SELECT ID, Cast(Name as VARCHAR(MAX)) as FullName, TypeID, 1 as Depth
-	FROM dbo.Items
-	WHERE ParentID = '00000000-0000-0000-0000-000000000000'
-	UNION ALL
-	SELECT item.ID,  Cast(cte.FullName + '.' + item.Name as VARCHAR(MAX)) as FullName, item.TypeID, cte.Depth + 1 as Depth
-	FROM dbo.Items as item
-	INNER JOIN Item_CTE as cte
-		ON item.ParentID = cte.ID
+    SELECT
+        ID,
+        CAST(Name AS varchar(MAX)) AS FullName,
+        TypeID,
+        1 AS Depth
+    FROM dbo.Items
+    WHERE ParentID = '00000000-0000-0000-0000-000000000000'
+
+    UNION ALL
+
+    SELECT
+        item.ID,
+        CAST(cte.FullName + '.' + item.Name AS varchar(MAX)) AS FullName,
+        item.TypeID,
+        cte.Depth + 1 AS Depth
+    FROM dbo.Items AS item
+    INNER JOIN Item_CTE AS cte
+        ON item.ParentID = cte.ID
 )
-
-SELECT ID, FullName, Depth, ip.Value as InheritPermissions
-from Item_CTE i
-inner join dbo.ItemProperties ip on i.ID = ip.ItemID
-where ip.PropertyName = 'InheritPermissions'
-
-order by FullName, Depth
+SELECT
+    i.ID,
+    i.FullName,
+    i.Depth,
+    ip.Value AS InheritPermissions
+FROM Item_CTE AS i
+INNER JOIN dbo.ItemProperties AS ip
+    ON i.ID = ip.ItemID
+WHERE ip.PropertyName = 'InheritPermissions'
+ORDER BY
+    i.FullName,
+    i.Depth;
