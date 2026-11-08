@@ -1,19 +1,22 @@
-
 /*
-	Script to output the Threshold Range values for a reporting point.
-	@ReportingPoint is the reporting point location that is used.
-	The Upper and Lower threshold values are stored in the Calendar table.
+    Outputs Calendar values for a reporting point.
+
+    Threshold ranges are stored using names such as:
+        {ReportingPoint}.Fields.{Field}.ThresholdRange.__UpperThreshold
+        {ReportingPoint}.Fields.{Field}.ThresholdRange.__LowerThreshold
+
+    Run this query against the AmplaProjectData database.
 */
 
--- Using the Ampla Data Repository database
-Use AmplaProjectData;
+DECLARE @ReportingPoint nvarchar(200) =
+    N'Enterprise.Site.Area.Production';
 
-DECLARE @ReportingPoint nvarchar(200)
-
---set @ReportingPoint = N'Enterprise.Site.Area.Quality'
---set @ReportingPoint = N'Enterprise.Site.Area.Production'
-set @ReportingPoint = N'Enterprise.Site.Area.Production'
-
-select ItemName, ActiveDateTime, ItemValue 
-from Calendar
-where ItemName like @ReportingPoint + '.Fields.%'
+SELECT
+    c.ItemName,
+    c.ActiveDateTime,
+    c.ItemValue
+FROM Calendar AS c
+WHERE c.ItemName LIKE @ReportingPoint + N'.Fields.%'
+ORDER BY
+    c.ItemName,
+    c.ActiveDateTime;
