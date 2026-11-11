@@ -22,21 +22,21 @@ jobs:
 
       - name: Verify repository structure
         run: |
-          test -d "src/Ampla Project"
+          test -d "src/Ampla-Project"
           test -d "src/Checks"
           test -d "src/Database"
           test -d "src/Performance"
-          test -d "src/Reporting Points"
-          test -d "src/State Database"
+          test -d "src/Reporting-Points"
+          test -d "src/State-Database"
           test -d "src/Streams"
           test -d "src/ThresholdRanges"
 
       - name: Verify README files exist
         run: |
           test -f README.md
-          test -f "src/Ampla Project/README.md"
+          test -f "src/Ampla-Project/README.md"
           test -f "src/Checks/README.md"
           test -f "src/Database/README.md"
-          test -f "src/Reporting Points/README.md"
+          test -f "src/Reporting-Points/README.md"
           test -f "src/Streams/README.md"
           test -f "src/ThresholdRanges/README.md"

@@ -1,4 +1,4 @@
-State Database Log Scripts
+State-Database Log Scripts
 ===
 
 A set of scripts to truncate the Plant2Business Logs from the state database

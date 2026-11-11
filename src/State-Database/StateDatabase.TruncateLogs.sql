@@ -1,5 +1,5 @@
 /*
-    Ampla State Database cleanup script.
+    Ampla State-Database cleanup script.
 
     Preserves the existing cleanup behavior:
     when the oldest Log record is more than four weeks old,

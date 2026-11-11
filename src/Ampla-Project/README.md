@@ -1,7 +1,7 @@
-Ampla Project Scripts
+Ampla-Project Scripts
 ===
 
-A set of scripts for understanding the Ampla Project configuration database
+A set of scripts for understanding the Ampla-Project configuration database
 
 ----------
 
