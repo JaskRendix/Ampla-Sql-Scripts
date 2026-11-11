@@ -1,57 +1,86 @@
-Ampla-Sql-Scripts
-===
+# Ampla-Sql-Scripts
 
-A set of SQL Scripts that are useful with Ampla projects
+A collection of SQL scripts useful for working with Ampla projects.
 
-- Ampla Scripts
-	- [Reporting Point Scripts](src/Reporting%20Points)
-	- [Ampla Project Scripts](src/Ampla%20Project) 
-	- [Stream Scripts](src/Streams) 
-	- [Threshold Ranges Information](src/ThresholdRanges)
+## Ampla Scripts
 
-- Database Scripts
-	- [Database Scripts](src/Database)
+- [Reporting Point Scripts](src/Reporting-Points)
+- [Ampla Project Scripts](src/Ampla-Project)
+- [Stream Scripts](src/Streams)
+- [Threshold Ranges Information](src/ThresholdRanges)
 
-- Data Repository Scripts
-	- [Integrity Checks](src/Checks)
+## Database Scripts
 
-### [Reporting Point Scripts](src/Reporting%20Points) ###
-A set of scripts to count the number of records by reporting point type
+- [Database Scripts](src/Database)
+
+## Data Repository Scripts
+
+- [Integrity Checks](src/Checks)
+
+---
+
+## Reporting Point Scripts
+
+**Location:** [src/Reporting-Points](src/Reporting-Points)
+
+A set of scripts to count the number of records by reporting point type.
+
+### Scripts
 
 - Module.RecordCounts.sql
 - Module.FieldCounts.sql
 
-### [Ampla Project Scripts](src/Ampla%20Project) ###
-A set of scripts for understanding the Ampla Project configuration database
+---
 
--  Item.FullName.sql
--  Item.FullName.Sorted.sql
--  Item.FullName.Type.sql
+## Ampla Project Scripts
 
-### [Stream Scripts](src/Streams) ###
-A set of scripts for understanding the streams in the Ampla state database
+**Location:** [src/Ampla-Project](src/Ampla-Project)
 
--  Streams.Age.sql
--  Streams.LastSamples.sql
--  Streams.Orphaned.sql
--  Streams.SampleCount.sql
+A set of scripts for understanding the Ampla Project configuration database.
 
-### [Database Scripts](src/Database) ###
-A set of scripts to output general information about the SQL Server Databases
+### Scripts
 
-- Database.Assembly.Version.sql
-- Database.BackupScript.sql
-- Database.FileSizes.sql
-- Database.CodeSizes.sql
-- Database.Information.sql
-- Database.PerformanceCounters.sql
-- Database.RecoveryMode.Simple.sql
-- Database.Trustworthy.sql
-- Database.TableSizes.sql
+- Item.FullName.sql
+- Item.FullName.Sorted.sql
+- Item.FullName.Type.sql
+
+---
+
+## Stream Scripts
+
+**Location:** [src/Streams](src/Streams)
+
+A set of scripts for understanding the streams in the Ampla State Database.
+
+### Scripts
+
+- Streams.Age.sql
+- Streams.LastSamples.sql
+- Streams.Orphaned.sql
+- Streams.SampleCount.sql
+
+---
+
+## Database Scripts
+
+**Location:** [src/Database](src/Database)
+
+A set of scripts that provide general information about SQL Server databases.
+
+### Scripts
+
+- Database.Assembly.VersionTableSizes.sql
 - Database.ShrinkFiles.sql
 
-### [Data Integrity Checks](src/Checks) ###
+---
+
+## Data Integrity Checks
+
+**Location:** src/Checks
+
 A set of scripts to check the data integrity of the Ampla Data Repository.
+
+### Scripts
 
 - DataRepository.Field.Duplicate.sql
 - DataRepository.Field.Deleted.sql
